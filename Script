@@ -1,0 +1,157 @@
+-- Movement Script: Fly and Speed Toggle
+-- Place this in StarterPlayer > StarterCharacterScripts or StarterGui
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local rootPart = character:WaitForChild("HumanoidRootPart")
+
+-- Settings
+local FLY_KEY = Enum.KeyCode.F -- Press F to toggle fly
+local SPEED_KEY = Enum.KeyCode.G -- Press G to toggle speed
+local FLY_SPEED = 50
+local WALK_SPEED = 100 -- Enhanced walk speed
+local NORMAL_SPEED = 16 -- Default Roblox speed
+
+-- States
+local flying = false
+local speedBoost = false
+local flyConnection = nil
+
+-- Body objects for flying
+local bodyVelocity = nil
+local bodyGyro = nil
+
+-- Function to create fly objects
+local function createFlyObjects()
+	if bodyVelocity or bodyGyro then return end
+	
+	bodyVelocity = Instance.new("BodyVelocity")
+	bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+	bodyVelocity.MaxForce = Vector3.new(0, 0, 0)
+	bodyVelocity.Parent = rootPart
+	
+	bodyGyro = Instance.new("BodyGyro")
+	bodyGyro.MaxTorque = Vector3.new(0, 0, 0)
+	bodyGyro.P = 9000
+	bodyGyro.Parent = rootPart
+end
+
+-- Function to remove fly objects
+local function removeFlyObjects()
+	if bodyVelocity then
+		bodyVelocity:Destroy()
+		bodyVelocity = nil
+	end
+	if bodyGyro then
+		bodyGyro:Destroy()
+		bodyGyro = nil
+	end
+end
+
+-- Toggle fly mode
+local function toggleFly()
+	flying = not flying
+	
+	if flying then
+		-- Disable speed boost if active
+		if speedBoost then
+			speedBoost = false
+			humanoid.WalkSpeed = NORMAL_SPEED
+		end
+		
+		createFlyObjects()
+		bodyVelocity.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+		bodyGyro.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+		
+		-- Flying loop
+		flyConnection = RunService.RenderStepped:Connect(function()
+			if not flying or not character or not rootPart then return end
+			
+			local camera = workspace.CurrentCamera
+			local moveDirection = Vector3.new()
+			
+			-- Get movement input
+			if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+				moveDirection = moveDirection + camera.CFrame.LookVector
+			end
+			if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+				moveDirection = moveDirection - camera.CFrame.LookVector
+			end
+			if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+				moveDirection = moveDirection - camera.CFrame.RightVector
+			end
+			if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+				moveDirection = moveDirection + camera.CFrame.RightVector
+			end
+			if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+				moveDirection = moveDirection + Vector3.new(0, 1, 0)
+			end
+			if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+				moveDirection = moveDirection - Vector3.new(0, 1, 0)
+			end
+			
+			-- Apply movement
+			bodyVelocity.Velocity = moveDirection.Unit * FLY_SPEED
+			bodyGyro.CFrame = camera.CFrame
+		end)
+		
+		print("Flying enabled! (Press F to disable)")
+	else
+		-- Disable flying
+		if flyConnection then
+			flyConnection:Disconnect()
+			flyConnection = nil
+		end
+		removeFlyObjects()
+		print("Flying disabled")
+	end
+end
+
+-- Toggle speed boost
+local function toggleSpeed()
+	if flying then
+		print("Cannot use speed boost while flying!")
+		return
+	end
+	
+	speedBoost = not speedBoost
+	
+	if speedBoost then
+		humanoid.WalkSpeed = WALK_SPEED
+		print("Speed boost enabled! (Press G to disable)")
+	else
+		humanoid.WalkSpeed = NORMAL_SPEED
+		print("Speed boost disabled")
+	end
+end
+
+-- Input handling
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	
+	if input.KeyCode == FLY_KEY then
+		toggleFly()
+	elseif input.KeyCode == SPEED_KEY then
+		toggleSpeed()
+	end
+end)
+
+-- Cleanup on character death/respawn
+character.Humanoid.Died:Connect(function()
+	flying = false
+	speedBoost = false
+	if flyConnection then
+		flyConnection:Disconnect()
+		flyConnection = nil
+	end
+	removeFlyObjects()
+end)
+
+print("Movement Script Loaded!")
+print("Press F to toggle flying")
+print("Press G to toggle speed boost")
