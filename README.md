@@ -17,7 +17,7 @@ Instantly switch between default walk speed and enhanced movement.
 Installation
 	1.	Open Roblox Studio
 	2.	Go to: StarterPlayer > StarterCharacterScripts
-    3.	Create a LocalScript
+ 3.	Create a LocalScript
 	4.	Paste the script into the LocalScript
 	5.	Play-test the game
 
